@@ -7,6 +7,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data import Dataset
 from torchvision import datasets
 
+
 def get_loader(data, data_path, batch_size):
     # dataset normalize values
     if data == 'cifar100':

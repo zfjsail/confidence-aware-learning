@@ -1,17 +1,18 @@
 import crl_utils
-import utils
+import utils_orig
 
 import time
 import torch
 import torch.nn.functional as F
 
+
 def train(loader, model, criterion_cls, criterion_ranking, optimizer, epoch, history, logger, args):
-    batch_time = utils.AverageMeter()
-    data_time = utils.AverageMeter()
-    total_losses = utils.AverageMeter()
-    top1 = utils.AverageMeter()
-    cls_losses = utils.AverageMeter()
-    ranking_losses = utils.AverageMeter()
+    batch_time = utils_orig.AverageMeter()
+    data_time = utils_orig.AverageMeter()
+    total_losses = utils_orig.AverageMeter()
+    top1 = utils_orig.AverageMeter()
+    cls_losses = utils_orig.AverageMeter()
+    ranking_losses = utils_orig.AverageMeter()
     end = time.time()
 
     model.train()
@@ -68,7 +69,7 @@ def train(loader, model, criterion_cls, criterion_ranking, optimizer, epoch, his
         optimizer.step()
         
         # record loss and accuracy
-        prec, correct = utils.accuracy(output, target)
+        prec, correct = utils_orig.accuracy(output, target)
         total_losses.update(loss.item(), input.size(0))
         cls_losses.update(cls_loss.item(), input.size(0))
         ranking_losses.update(ranking_loss.item(), input.size(0))

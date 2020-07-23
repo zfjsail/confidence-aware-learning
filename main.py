@@ -5,7 +5,7 @@ from model import vgg
 import data as dataset
 import crl_utils
 import metrics
-import utils
+import utils_orig
 import train
 
 import argparse
@@ -29,6 +29,7 @@ parser.add_argument('--gpu', default='0', type=str, help='GPU id to use')
 parser.add_argument('--print-freq', '-p', default=10, type=int, metavar='N', help='print frequency (default: 10)')
 
 args = parser.parse_args()
+
 
 def main():
     # set GPU ID
@@ -87,8 +88,8 @@ def main():
                             gamma=0.1)
 
     # make logger
-    train_logger = utils.Logger(os.path.join(save_path, 'train.log'))
-    result_logger = utils.Logger(os.path.join(save_path, 'result.log'))
+    train_logger = utils_orig.Logger(os.path.join(save_path, 'train.log'))
+    result_logger = utils_orig.Logger(os.path.join(save_path, 'result.log'))
 
     # make History Class
     correctness_history = crl_utils.History(len(train_loader.dataset))

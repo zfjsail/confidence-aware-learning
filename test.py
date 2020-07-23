@@ -4,7 +4,7 @@ from model import vgg
 
 import data as dataset
 import metrics
-import utils
+import utils_orig
 
 import argparse
 import os
@@ -68,7 +68,7 @@ def main():
     cls_criterion = nn.CrossEntropyLoss().cuda()
 
     # make logger
-    result_logger = utils.Logger(os.path.join(save_path, 'result.log'))
+    result_logger = utils_orig.Logger(os.path.join(save_path, 'result.log'))
 
     # load pretrained model
     model_state_dict = torch.load(os.path.join(args.save_path,

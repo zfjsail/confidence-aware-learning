@@ -15,12 +15,14 @@ def negative_entropy(data, normalize=False, max_value=None):
 
     return -entropy
 
+
 # correctness history class
 class History(object):
-    def __init__(self, n_data):
+    def __init__(self, n_data, args):
         self.correctness = np.zeros((n_data))
         self.confidence = np.zeros((n_data))
         self.max_correctness = 1
+        self.args = args
 
     # correctness update
     def correctness_update(self, data_idx, correctness, output):
@@ -60,9 +62,13 @@ class History(object):
         less = np.array(target1 < target2, dtype='float') * (-1)
 
         target = greater + less
-        target = torch.from_numpy(target).float().cuda()
+        target = torch.from_numpy(target).float()
         # calc margin
         margin = abs(target1 - target2)
-        margin = torch.from_numpy(margin).float().cuda()
+        margin = torch.from_numpy(margin).float()
+
+        if self.args.cuda:
+            target = target.cuda()
+            margin = margin.cuda()
 
         return target, margin

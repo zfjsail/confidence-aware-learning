@@ -8,6 +8,7 @@ import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 import time
 
 from sklearn.metrics import precision_recall_fscore_support
@@ -53,7 +54,8 @@ parser.add_argument('--mat2-kernel-size1', type=int, default=2, help='Matrix2 ke
 parser.add_argument('--mat2-hidden', type=int, default=512, help='Matrix2 hidden dim')
 parser.add_argument('--build-index-window', type=int, default=5, help='Matrix2 hidden dim')
 parser.add_argument('--seed', type=int, default=42, help='Random seed.')
-parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train.')
+parser.add_argument('--delta-seed', type=int, default=4, help='Random seed.')
+parser.add_argument('--epochs', type=int, default=500, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.001, help='Initial learning rate.')
 parser.add_argument('--initial-accumulator-value', type=float, default=0.01, help='Initial accumulator value.')
 parser.add_argument('--weight-decay', type=float, default=1e-3,
@@ -62,16 +64,19 @@ parser.add_argument('--dropout', type=float, default=0.2,
                     help='Dropout rate (1 - keep probability).')
 parser.add_argument('--batch', type=int, default=64, help="Batch size")
 parser.add_argument('--dim', type=int, default=64, help="Embedding dimension")
-parser.add_argument('--check-point', type=int, default=2, help="Check point")
+parser.add_argument('--check-point', type=int, default=3, help="Check point")
 parser.add_argument('--shuffle', action='store_true', default=True, help="Shuffle dataset")
 parser.add_argument('--file-dir', type=str, default=settings.VENUE_DATA_DIR, help="Input file directory")
-parser.add_argument('--train-ratio', type=float, default=60, help="Training ratio (0, 100)")
-parser.add_argument('--valid-ratio', type=float, default=10, help="Validation ratio (0, 100)")
+parser.add_argument('--train-ratio', type=float, default=50, help="Training ratio (0, 100)")
+parser.add_argument('--valid-ratio', type=float, default=20, help="Validation ratio (0, 100)")
 parser.add_argument('--class-weight-balanced', action='store_true', default=False,
                     help="Adjust weights inversely proportional"
                          " to class frequencies in the input data")
 
 args = parser.parse_args()
+
+writer = SummaryWriter('runs/venue_cnn_basic_{}'.format(args.delta_seed))
+# writer = SummaryWriter('runs/venue_cnn_weight_{}'.format(args.delta_seed))
 
 
 def evaluate(epoch, loader, model, thr=None, return_best_thr=False, args=args):
@@ -119,8 +124,16 @@ def evaluate(epoch, loader, model, thr=None, return_best_thr=False, args=args):
         f1s = f1s[~np.isnan(f1s)]
         best_thr = thrs[np.argmax(f1s)]
         logger.info("best threshold=%4f, f1=%.4f", best_thr, np.max(f1s))
+
+        writer.add_scalar('val_loss',
+                          loss / total,
+                          epoch)
+
         return best_thr, [loss / total, auc, prec, rec, f1]
     else:
+        writer.add_scalar('test_f1',
+                          f1,
+                          epoch)
         return None, [loss / total, auc, prec, rec, f1]
 
 
@@ -175,9 +188,10 @@ def train(loader, valid_loader, test_loader, model, criterion_cls, criterion_ran
         # print("cls loss", cls_loss)
         prec, correct = utils_orig.accuracy(output, labels)
 
-        if epoch > 1:  # [4, 5]
+        if epoch > 10000:  # [4, 5]
             # sample_weight = torch.Tensor(4 - history.correctness[idx]/history.max_correctness)
-            sample_weight = torch.Tensor(3 - correct.float())
+            sample_weight = torch.Tensor(3 - correct.float())  # 0.5 improv.
+            # sample_weight = torch.Tensor(epoch + 5 - history.correctness[idx])  # 0.5 improv.
         else:
             sample_weight = torch.ones_like(cls_loss)
         sample_weight = sample_weight / torch.sum(sample_weight)
@@ -220,6 +234,9 @@ def train(loader, valid_loader, test_loader, model, criterion_cls, criterion_ran
     history.max_correctness_update(epoch)
 
     logger_w.write([epoch, total_losses.avg, cls_losses.avg, ranking_losses.avg, top1.avg])
+    writer.add_scalar('training_loss',
+                      total_losses.avg,
+                      epoch)
 
     metrics_val = None
     metrics_test = None
@@ -241,9 +258,9 @@ def main():
     logger.info('cuda is available %s', args.cuda)
 
     np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
+    torch.manual_seed(args.seed + args.delta_seed)
     if args.cuda:
-        torch.cuda.manual_seed(args.seed)
+        torch.cuda.manual_seed(args.seed + args.delta_seed)
 
     # check save path
     save_path = args.save_path

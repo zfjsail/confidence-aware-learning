@@ -34,7 +34,7 @@ parser.add_argument('--data', default='cifar10', type=str, help='Dataset name to
 parser.add_argument('--model', default='res', type=str, help='Models name to use [res, dense, vgg]')
 parser.add_argument('--rank_target', default='softmax', type=str,
                     help='Rank_target name to use [softmax, margin, entropy]')
-parser.add_argument('--rank_weight', default=0.2, type=float, help='Rank loss weight')
+parser.add_argument('--rank_weight', default=0.0, type=float, help='Rank loss weight')
 parser.add_argument('--data_path', default='./data/', type=str, help='Dataset directory')
 parser.add_argument('--save_path', default='./test/', type=str, help='Savefiles directory')
 parser.add_argument('--gpu', default='0', type=str, help='GPU id to use')
@@ -172,6 +172,18 @@ def train(loader, valid_loader, test_loader, model, criterion_cls, criterion_ran
 
         # total loss
         cls_loss = criterion_cls(output, labels)
+        # print("cls loss", cls_loss)
+        prec, correct = utils_orig.accuracy(output, labels)
+
+        if epoch > 1:  # [4, 5]
+            # sample_weight = torch.Tensor(4 - history.correctness[idx]/history.max_correctness)
+            sample_weight = torch.Tensor(3 - correct.float())
+        else:
+            sample_weight = torch.ones_like(cls_loss)
+        sample_weight = sample_weight / torch.sum(sample_weight)
+        # print("sample weight", sample_weight)
+        cls_loss = torch.sum(cls_loss * sample_weight, dim=0)
+
         ranking_loss = args.rank_weight * ranking_loss
         loss = cls_loss + ranking_loss
 
@@ -181,7 +193,6 @@ def train(loader, valid_loader, test_loader, model, criterion_cls, criterion_ran
         optimizer.step()
 
         # record loss and accuracy
-        prec, correct = utils_orig.accuracy(output, labels)
         total_losses.update(loss.item(), labels.size(0))
         cls_losses.update(cls_loss.item(), labels.size(0))
         ranking_losses.update(ranking_loss.item(), labels.size(0))
@@ -258,7 +269,7 @@ def main():
 
     # set criterion
     # cls_criterion = nn.CrossEntropyLoss().cuda()
-    cls_criterion = nn.NLLLoss()
+    cls_criterion = nn.NLLLoss(reduction="none")
     ranking_criterion = nn.MarginRankingLoss(margin=0.0)
 
     if args.cuda:
